@@ -201,7 +201,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                     padding: EdgeInsets.all(16),
                     margin: EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 73, 71, 71),
+                    color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(

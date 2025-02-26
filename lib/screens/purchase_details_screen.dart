@@ -229,7 +229,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                 Container(
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 73, 71, 71),
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(

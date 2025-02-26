@@ -55,14 +55,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.store,
-                  size: 100,
-                  color: Colors.white,
-                ),
+               Image.asset( 'assets/icon/logo.png',),
                 SizedBox(height: 20),
                 Text(
-                  'Shop Profit Calculator',
+                  'Profit Calculator',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
