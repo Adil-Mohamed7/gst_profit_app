@@ -28,7 +28,8 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _salePriceController = TextEditingController();
   
-  double _salePrice = 0.0;
+  double _salePriceWithGst = 0.0;
+  double _baseSalePrice = 0.0;
   double _margin = 0.0;
   double _gstExpense = 0.0;
   double _netProfit = 0.0;
@@ -48,18 +49,29 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
   
   void _calculateProfitMetrics() {
     setState(() {
-      _salePrice = double.tryParse(_salePriceController.text) ?? 0.0;
+      // Sale price entered by user (including GST)
+      _salePriceWithGst = double.tryParse(_salePriceController.text) ?? 0.0;
       
-      if (widget.totalCost > 0 && _salePrice > 0) {
-        // Calculate margin as a percentage
-        _margin = ((_salePrice - widget.totalCost) / widget.totalCost) * 100;
+      if (_salePriceWithGst > 0) {
+        // Calculate base sale price (without GST)
+        _baseSalePrice = _salePriceWithGst / (1 + (widget.gstPercentage / 100));
         
-        // Calculate GST expense
-        _gstExpense = widget.purchaseValue * widget.gstPercentage / 100;
+        // Calculate margin (total selling price - total cost price)
+        _margin = _salePriceWithGst - widget.totalCost;
         
-        // Calculate net profit
-        _netProfit = _salePrice - widget.totalCost;
+        // Calculate GST in sale price
+        double gstInSalePrice = _salePriceWithGst - _baseSalePrice;
+        
+        // Calculate GST in purchase price
+        double gstInPurchasePrice = widget.purchaseValue * widget.gstPercentage / 100;
+        
+        // Calculate GST expense (GST in sale price - GST in purchase price)
+        _gstExpense = gstInSalePrice - gstInPurchasePrice;
+        
+        // Calculate net profit (margin - GST expense)
+        _netProfit = _margin - _gstExpense;
       } else {
+        _baseSalePrice = 0.0;
         _margin = 0.0;
         _gstExpense = 0.0;
         _netProfit = 0.0;
@@ -77,7 +89,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
         gstPercentage: widget.gstPercentage,
         freightCharge: widget.freightCharge,
         totalCost: widget.totalCost,
-        salePrice: _salePrice,
+        salePrice: _salePriceWithGst,
         margin: _margin,
         gstExpense: _gstExpense,
         netProfit: _netProfit,
@@ -147,7 +159,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                       ),
                     ],
                   ),
-),
+                ),
                 SizedBox(height: 24),
                 
                 // Item Name (Optional)
@@ -161,13 +173,14 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                 ),
                 SizedBox(height: 16),
                 
-                // Sale Price
+                // Sale Price (with GST)
                 TextFormField(
                   controller: _salePriceController,
                   decoration: InputDecoration(
-                    labelText: 'Sale Price',
+                    labelText: 'Sale Price (GST included)',
                     border: OutlineInputBorder(),
                     prefixText: '₹',
+                    helperText: 'Enter the total sale price including GST',
                   ),
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
@@ -181,6 +194,53 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                   },
                 ),
                 SizedBox(height: 24),
+                
+                // Sale price breakdown
+                if (_salePriceWithGst > 0)
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    margin: EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 73, 71, 71),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Sale Price Breakdown:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Base Price:'),
+                            Text('₹${_baseSalePrice.toStringAsFixed(2)}'),
+                          ],
+                        ),
+                        SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('GST (${widget.gstPercentage.toStringAsFixed(widget.gstPercentage.truncateToDouble() == widget.gstPercentage ? 0 : 1)}%):'),
+                            Text('₹${(_salePriceWithGst - _baseSalePrice).toStringAsFixed(2)}'),
+                          ],
+                        ),
+                        SizedBox(height: 4),
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Sale Price (with GST):'),
+                            Text('₹${_salePriceWithGst.toStringAsFixed(2)}'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 
                 // Results section
                 Card(
@@ -201,22 +261,23 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                         
                         // Margin
                         _resultRow(
-                          label: 'Margin',
-                          value: '${_margin.toStringAsFixed(2)}%',
+                          label: 'Margin (Sale Price - Total Cost)',
+                          value: '₹${_margin.toStringAsFixed(2)}',
                           color: _margin >= 0 ? Colors.green : Colors.red,
                         ),
                         SizedBox(height: 12),
                         
                         // GST Expense
                         _resultRow(
-                          label: 'GST Expense',
+                          label: 'GST Expense (Sale GST - Purchase GST)',
                           value: '₹${_gstExpense.toStringAsFixed(2)}',
+                          color: _gstExpense >= 0 ? null : Colors.red,
                         ),
                         SizedBox(height: 12),
                         
                         // Net Profit
                         _resultRow(
-                          label: 'Net Profit',
+                          label: 'Net Profit (Margin - GST Expense)',
                           value: '₹${_netProfit.toStringAsFixed(2)}',
                           color: _netProfit >= 0 ? Colors.green : Colors.red,
                           isBold: true,
@@ -260,10 +321,12 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+            ),
           ),
         ),
         Text(

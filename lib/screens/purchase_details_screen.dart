@@ -14,7 +14,8 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   
   DateTime _selectedDate = DateTime.now();
-  double _purchaseValue = 0.0;
+  double _purchaseValueWithGst = 0.0;
+  double _basePurchaseValue = 0.0;
   double _gstPercentage = 18.0;
   double _freightCharge = 0.0;
   double _totalCost = 0.0;
@@ -57,9 +58,14 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   
   void _calculateTotal() {
     setState(() {
-      _purchaseValue = double.tryParse(_purchaseController.text) ?? 0.0;
+      _purchaseValueWithGst = double.tryParse(_purchaseController.text) ?? 0.0;
       _freightCharge = double.tryParse(_freightController.text) ?? 0.0;
-      _totalCost = _purchaseValue + (_purchaseValue * _gstPercentage / 100) + _freightCharge;
+      
+      // Calculate base purchase value by removing GST
+      _basePurchaseValue = _purchaseValueWithGst / (1 + (_gstPercentage / 100));
+      
+      // Total cost is now the GST-inclusive purchase value plus freight
+      _totalCost = _purchaseValueWithGst + _freightCharge;
     });
   }
   
@@ -162,13 +168,14 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                 ),
                 SizedBox(height: 16),
                 
-                // Purchase Value
+                // Purchase Value (now with GST included)
                 TextFormField(
                   controller: _purchaseController,
                   decoration: InputDecoration(
-                    labelText: 'Purchase Value',
+                    labelText: 'Purchase Value (GST included)',
                     border: OutlineInputBorder(),
                     prefixText: '₹',
+                    helperText: 'Enter the total amount including GST',
                   ),
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
@@ -215,6 +222,52 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                       onPressed: _addCustomGst,
                     ),
                   ],
+                ),
+                SizedBox(height: 16),
+                
+                // Breakdown container
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 73, 71, 71),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Purchase Breakdown:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Base Value:'),
+                          Text('₹${_basePurchaseValue.toStringAsFixed(2)}'),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('GST (${_gstPercentage.toStringAsFixed(_gstPercentage.truncateToDouble() == _gstPercentage ? 0 : 1)}%):'),
+                          Text('₹${(_purchaseValueWithGst - _basePurchaseValue).toStringAsFixed(2)}'),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Purchase Value (with GST):'),
+                          Text('₹${_purchaseValueWithGst.toStringAsFixed(2)}'),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 SizedBox(height: 16),
                 
@@ -280,7 +333,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                 MaterialPageRoute(
                   builder: (context) => SalesDetailsScreen(
                     date: _selectedDate,
-                    purchaseValue: _purchaseValue,
+                    purchaseValue: _basePurchaseValue, // Pass the base value (without GST)
                     gstPercentage: _gstPercentage,
                     freightCharge: _freightCharge,
                     totalCost: _totalCost,
