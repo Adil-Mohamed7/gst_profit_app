@@ -26,8 +26,10 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _markupPercentageController = TextEditingController();
   final TextEditingController _salePriceController = TextEditingController();
   
+  bool _showPriceBreakdown = false;
   double _salePriceWithGst = 0.0;
   double _baseSalePrice = 0.0;
   double _margin = 0.0;
@@ -38,13 +40,29 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
   void initState() {
     super.initState();
     _salePriceController.addListener(_calculateProfitMetrics);
+    _markupPercentageController.addListener(_calculateSalePriceFromMarkup);
   }
   
   @override
   void dispose() {
     _nameController.dispose();
+    _markupPercentageController.dispose();
     _salePriceController.dispose();
     super.dispose();
+  }
+  
+  void _calculateSalePriceFromMarkup() {
+    final markupPercentage = double.tryParse(_markupPercentageController.text) ?? 0.0;
+    
+    if (markupPercentage > 0) {
+      // Calculate new sale price based on markup percentage
+      final markupMultiplier = 1 + (markupPercentage / 100);
+      final calculatedSalePrice = widget.totalCost * markupMultiplier;
+      
+      // Update the sale price field
+      _salePriceController.text = calculatedSalePrice.toStringAsFixed(2);
+      // No need to call _calculateProfitMetrics() as it will be triggered by the listener
+    }
   }
   
   void _calculateProfitMetrics() {
@@ -112,9 +130,13 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final settings = Hive.box('settings');
+    final double fontSizeMultiplier = settings.get('fontSizeMultiplier', defaultValue: 1.0);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Sales Details'),
+        title: Text('Sales Details',style: TextStyle(color: Colors.white),),
+         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -146,14 +168,14 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                       Text(
                         'Total Cost:',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 18 * fontSizeMultiplier,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         '₹${widget.totalCost.toStringAsFixed(2)}',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 18 * fontSizeMultiplier,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -170,6 +192,19 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                     border: OutlineInputBorder(),
                     hintText: 'Enter item description',
                   ),
+                ),
+                SizedBox(height: 16),
+                
+                // Markup Percentage
+                TextFormField(
+                  controller: _markupPercentageController,
+                  decoration: InputDecoration(
+                    labelText: 'Markup Percentage',
+                    border: OutlineInputBorder(),
+                    suffixText: '%',
+                    helperText: 'Enter percentage to auto-calculate sale price',
+                  ),
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
                 ),
                 SizedBox(height: 16),
                 
@@ -195,50 +230,70 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                 ),
                 SizedBox(height: 24),
                 
-                // Sale price breakdown
+                // Expandable Sale price breakdown
                 if (_salePriceWithGst > 0)
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    margin: EdgeInsets.only(bottom: 24),
-                    decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Sale Price Breakdown:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showPriceBreakdown = !_showPriceBreakdown;
+                      });
+                    },
+                    child: Container(
+                      padding: EdgeInsets.all(16),
+                      margin: EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Sale Price Breakdown',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16 * fontSizeMultiplier,
+                                ),
+                              ),
+                              Icon(
+                                _showPriceBreakdown
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                              ),
+                            ],
                           ),
-                        ),
-                        SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Base Price:'),
-                            Text('₹${_baseSalePrice.toStringAsFixed(2)}'),
+                          if (_showPriceBreakdown) ...[
+                            SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Base Price:'),
+                                Text('₹${_baseSalePrice.toStringAsFixed(2)}'),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('GST (${widget.gstPercentage.toStringAsFixed(widget.gstPercentage.truncateToDouble() == widget.gstPercentage ? 0 : 1)}%):'),
+                                Text('₹${(_salePriceWithGst - _baseSalePrice).toStringAsFixed(2)}'),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+                            Divider(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Sale Price (with GST):'),
+                                Text('₹${_salePriceWithGst.toStringAsFixed(2)}'),
+                              ],
+                            ),
                           ],
-                        ),
-                        SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('GST (${widget.gstPercentage.toStringAsFixed(widget.gstPercentage.truncateToDouble() == widget.gstPercentage ? 0 : 1)}%):'),
-                            Text('₹${(_salePriceWithGst - _baseSalePrice).toStringAsFixed(2)}'),
-                          ],
-                        ),
-                        SizedBox(height: 4),
-                        Divider(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Sale Price (with GST):'),
-                            Text('₹${_salePriceWithGst.toStringAsFixed(2)}'),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 
@@ -252,7 +307,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                         Text(
                           'Calculated Results',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 18 * fontSizeMultiplier,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -264,6 +319,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                           label: 'Margin (Sale Price - Total Cost)',
                           value: '₹${_margin.toStringAsFixed(2)}',
                           color: _margin >= 0 ? Colors.green : Colors.red,
+                          fontSizeMultiplier: fontSizeMultiplier,
                         ),
                         SizedBox(height: 12),
                         
@@ -272,6 +328,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                           label: 'GST Expense (Sale GST - Purchase GST)',
                           value: '₹${_gstExpense.toStringAsFixed(2)}',
                           color: _gstExpense >= 0 ? null : Colors.red,
+                          fontSizeMultiplier: fontSizeMultiplier,
                         ),
                         SizedBox(height: 12),
                         
@@ -281,6 +338,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
                           value: '₹${_netProfit.toStringAsFixed(2)}',
                           color: _netProfit >= 0 ? Colors.green : Colors.red,
                           isBold: true,
+                          fontSizeMultiplier: fontSizeMultiplier,
                         ),
                       ],
                     ),
@@ -305,7 +363,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
           ),
           child: Text(
             'Save Item',
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 16 * fontSizeMultiplier),
           ),
         ),
       ),
@@ -315,6 +373,7 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
   Widget _resultRow({
     required String label,
     required String value,
+    required double fontSizeMultiplier,
     Color? color,
     bool isBold = false,
   }) {
@@ -325,14 +384,14 @@ class _SalesDetailsScreenState extends State<SalesDetailsScreen> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 16 * fontSizeMultiplier,
             ),
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 16 * fontSizeMultiplier,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
             color: color,
           ),

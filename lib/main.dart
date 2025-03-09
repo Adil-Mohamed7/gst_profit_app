@@ -68,7 +68,7 @@ void main() async {
   await Hive.openBox<Item>('items');
   await Hive.openBox<String>('customGstValues');
    await Hive.openBox('settings');
-   
+
   runApp(const MyApp());
 }
 
@@ -93,6 +93,7 @@ class MyApp extends StatelessWidget {
               secondary: Colors.blue,
             ),
           ),
+          
           darkTheme: ThemeData(
             brightness: Brightness.dark,
             useMaterial3: true,

@@ -19,6 +19,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
   double _gstPercentage = 18.0;
   double _freightCharge = 0.0;
   double _totalCost = 0.0;
+  bool _showBreakdown = false;
   
   final TextEditingController _purchaseController = TextEditingController();
   final TextEditingController _freightController = TextEditingController();
@@ -129,11 +130,25 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
     );
   }
   
+  void _toggleBreakdown() {
+    setState(() {
+      _showBreakdown = !_showBreakdown;
+    });
+  }
+  
   @override
   Widget build(BuildContext context) {
+    // Get the font size multiplier from settings
+    final settings = Hive.box('settings');
+    final double fontSizeMultiplier = settings.get('fontSizeMultiplier', defaultValue: 1.0);
+    
     return Scaffold(
       appBar: AppBar(
-        title: Text('Purchase Details'),
+        title: Text(
+          'Purchase Details',
+          style: TextStyle(fontSize: 20 * fontSizeMultiplier,color: Colors.white),
+        ),
+         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -158,11 +173,13 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                   child: InputDecorator(
                     decoration: InputDecoration(
                       labelText: 'Date',
+                      labelStyle: TextStyle(fontSize: 16 * fontSizeMultiplier),
                       border: OutlineInputBorder(),
                       suffixIcon: Icon(Icons.calendar_today),
                     ),
                     child: Text(
                       DateFormat('dd/MM/yyyy').format(_selectedDate),
+                      style: TextStyle(fontSize: 16 * fontSizeMultiplier),
                     ),
                   ),
                 ),
@@ -173,10 +190,13 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                   controller: _purchaseController,
                   decoration: InputDecoration(
                     labelText: 'Purchase Value (GST included)',
+                    labelStyle: TextStyle(fontSize: 16 * fontSizeMultiplier),
                     border: OutlineInputBorder(),
                     prefixText: '₹',
                     helperText: 'Enter the total amount including GST',
+                    helperStyle: TextStyle(fontSize: 14 * fontSizeMultiplier),
                   ),
+                  style: TextStyle(fontSize: 16 * fontSizeMultiplier),
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -194,7 +214,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                 Text(
                   'GST Percentage',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 16 * fontSizeMultiplier,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -204,7 +224,10 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                   children: [
                     ..._gstOptions.map((option) => 
                       ChoiceChip(
-                        label: Text('${option.toStringAsFixed(option.truncateToDouble() == option ? 0 : 1)}%'),
+                        label: Text(
+                          '${option.toStringAsFixed(option.truncateToDouble() == option ? 0 : 1)}%',
+                          style: TextStyle(fontSize: 15 * fontSizeMultiplier),
+                        ),
                         selected: _gstPercentage == option,
                         onSelected: (selected) {
                           if (selected) {
@@ -218,56 +241,13 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                     ),
                     ActionChip(
                       avatar: Icon(Icons.add),
-                      label: Text('Custom'),
+                      label: Text(
+                        'Custom',
+                        style: TextStyle(fontSize: 15 * fontSizeMultiplier),
+                      ),
                       onPressed: _addCustomGst,
                     ),
                   ],
-                ),
-                SizedBox(height: 16),
-                
-                // Breakdown container
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Purchase Breakdown:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Base Value:'),
-                          Text('₹${_basePurchaseValue.toStringAsFixed(2)}'),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('GST (${_gstPercentage.toStringAsFixed(_gstPercentage.truncateToDouble() == _gstPercentage ? 0 : 1)}%):'),
-                          Text('₹${(_purchaseValueWithGst - _basePurchaseValue).toStringAsFixed(2)}'),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Purchase Value (with GST):'),
-                          Text('₹${_purchaseValueWithGst.toStringAsFixed(2)}'),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
                 SizedBox(height: 16),
                 
@@ -276,9 +256,11 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                   controller: _freightController,
                   decoration: InputDecoration(
                     labelText: 'Freight Charge',
+                    labelStyle: TextStyle(fontSize: 16 * fontSizeMultiplier),
                     border: OutlineInputBorder(),
                     prefixText: '₹',
                   ),
+                  style: TextStyle(fontSize: 16 * fontSizeMultiplier),
                   keyboardType: TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
                     if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
@@ -289,31 +271,110 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
                 ),
                 SizedBox(height: 24),
                 
-                // Total Cost
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total Cost:',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                // Total Cost with collapsible breakdown
+                GestureDetector(
+                  onTap: _toggleBreakdown,
+                  child: Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total Cost:',
+                              style: TextStyle(
+                                fontSize: 18 * fontSizeMultiplier,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Text(
+                                  '₹${_totalCost.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 18 * fontSizeMultiplier,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(
+                                  _showBreakdown 
+                                    ? Icons.keyboard_arrow_up 
+                                    : Icons.keyboard_arrow_down,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ),
-                      Text(
-                        '₹${_totalCost.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                        
+                        // Collapsible breakdown
+                        if (_showBreakdown) ...[
+                          SizedBox(height: 16),
+                          Divider(),
+                          SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Base Value:',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                              Text(
+                                '₹${_basePurchaseValue.toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'GST (${_gstPercentage.toStringAsFixed(_gstPercentage.truncateToDouble() == _gstPercentage ? 0 : 1)}%):',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                              Text(
+                                '₹${(_purchaseValueWithGst - _basePurchaseValue).toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Purchase Value (with GST):',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                              Text(
+                                '₹${_purchaseValueWithGst.toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Freight Charge:',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                              Text(
+                                '₹${_freightCharge.toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 16 * fontSizeMultiplier),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
                 SizedBox(height: 32),
@@ -350,7 +411,7 @@ class _PurchaseDetailsScreenState extends State<PurchaseDetailsScreen> {
           ),
           child: Text(
             'Next: Sales Details',
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(fontSize: 16 * fontSizeMultiplier),
           ),
         ),
       ),
